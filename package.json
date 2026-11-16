@@ -1,0 +1,24 @@
+{
+  "name": "confidant",
+  "version": "0.1.0",
+  "description": "Which AI knows when it doesn't know? A live benchmark where models answer for free or buy verified intelligence on Telegraph.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "round": "node src/cli.mjs round",
+    "wallet": "node src/cli.mjs wallet",
+    "test": "node --test test/",
+    "check": "node src/cli.mjs check"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@x402/evm": "^2.31.0",
+    "@x402/fetch": "^2.31.0",
+    "undici": "^8.12.4",
+    "viem": "^2.57.20"
+  }
+}
