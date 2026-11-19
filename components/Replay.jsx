@@ -1,6 +1,7 @@
 "use client";
 // The hero's moving example: real decisions from past rounds, played back one step at a time:
 // the question, the model's guess and confidence, its choice, then the true answer and what the choice cost.
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ago, num, pct } from "@/lib/format";
 import { Icon, Who } from "./ui";
@@ -97,7 +98,7 @@ export default function Replay({ items, mistakeCost, now }) {
       <div className="replay-foot">
         <button className="icon-btn" onClick={() => go(i - 1)} aria-label="Previous decision"><span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon name="chev" /></span></button>
         <div className="dots">{items.map((_, n) => <button key={n} className={n === i ? "on" : ""} onClick={() => go(n)} aria-label={`Decision ${n + 1}`} />)}</div>
-        <a href={`#round-${it.round}`}>Open this round</a>
+        <Link href={`/rounds/${it.round}`}>Open this round</Link>
       </div>
     </div>
   );

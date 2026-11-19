@@ -142,7 +142,8 @@ src/api.mjs         what each API endpoint does
 src/advice.mjs      the advice and the strategy replay (tested)
 lib/x402.js         selling the advice over x402
 src/cli.mjs         round, check, wallet, import, remove
-app/                the Next.js site (page, layout, styles) and API routes (app/api/*)
+app/                the Next.js site: / (home), /leaderboard, /savings, /try, /developers, /receipts,
+                    /rounds, /rounds/<id>, /method; and the API routes in app/api/*
 components/         the page's parts: leaderboard, try box, rounds, question cards
 .github/workflows/  the scheduled round
 ```

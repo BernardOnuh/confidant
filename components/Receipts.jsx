@@ -1,8 +1,10 @@
 // Proof that the purchases are real: the latest answers bought on Telegraph, each with its public receipt.
+import Link from "next/link";
 import { ago, num } from "@/lib/format";
 import { Icon, Who } from "./ui";
 
-export default function Receipts({ receipts, telegraph, now }) {
+export default function Receipts({ receipts, telegraph, now, limit, more }) {
+  if (limit) receipts = receipts.slice(0, limit);
   return (
     <section id="receipts">
       <div className="shead"><div>
@@ -27,6 +29,7 @@ export default function Receipts({ receipts, telegraph, now }) {
           </div>
         ))}
       </div>
+      {more && <div className="more-link"><Link href="/receipts">All receipts <Icon name="arrow" /></Link></div>}
     </section>
   );
 }
