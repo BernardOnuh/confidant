@@ -1,5 +1,5 @@
 // The Confidant site. Rendered on the server with the latest results, then kept up to date in the browser.
-import { getSummary, listRounds, options, showcase } from "@/src/api.mjs";
+import { adviceTerms, getSavings, getSummary, listRounds, options, showcase } from "@/src/api.mjs";
 import Live from "@/components/Live";
 import Nav from "@/components/Nav";
 import { Icon } from "@/components/ui";
@@ -9,12 +9,14 @@ export const dynamic = "force-dynamic";
 const EMPTY = { rounds: 0, questions: 0, decisions: 0, leaderboard: [], telegraph: { purchases: 0, spent_usd: 0, correct: 0 }, mistake_cost_usd: 0.25, updated_at: null };
 
 export default async function Page() {
-  const [[, opts], summary, rounds, show] = await Promise.all([
+  const [[, opts], summary, rounds, show, value] = await Promise.all([
     options(),
     getSummary().then(([, s]) => s).catch(e => (console.error("summary:", e.message), EMPTY)),
     listRounds(11).then(([, r]) => r).catch(e => (console.error("rounds:", e.message), [])),
     showcase().then(([, s]) => s).catch(e => (console.error("showcase:", e.message), { replay: [], receipts: [] })),
+    getSavings().then(([, s]) => s).catch(e => (console.error("savings:", e.message), null)),
   ]);
+  const site = process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
   const mc = `$${summary.mistake_cost_usd.toFixed(2)}`;
 
   const hero = (
@@ -52,7 +54,7 @@ export default async function Page() {
     <>
       <Nav repo="https://github.com/BernardOnuh/confidant" />
 
-      <Live initial={{ summary, rounds, options: opts, showcase: show, now: Date.now() }} hero={hero}>
+      <Live initial={{ summary, rounds, options: opts, showcase: show, savings: value, terms: adviceTerms(), site, now: Date.now() }} hero={hero}>
         <section id="how">
           <div className="shead"><div><p className="kicker">Method</p><h2>How it works</h2><p className="sub">Every model receives the same questions, the same prompt and the same prices. This is the choice each one faces:</p></div></div>
           <div style={{ marginBottom: 16 }}>{choice}</div>

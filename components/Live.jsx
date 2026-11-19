@@ -3,7 +3,9 @@
 // They start from what the server rendered and refresh after a visitor's question and every minute.
 import { useCallback, useEffect, useState } from "react";
 import { ago, pct } from "@/lib/format";
+import JudgmentApi from "./JudgmentApi";
 import Leaderboard from "./Leaderboard";
+import Savings from "./Savings";
 import Receipts from "./Receipts";
 import Replay from "./Replay";
 import Rounds from "./Rounds";
@@ -28,10 +30,12 @@ export default function Live({ initial, hero, children }) {
   const [rounds, setRounds] = useState(initial.rounds);
   const [limit, setLimit] = useState(10);
   const [show, setShow] = useState(initial.showcase);
+  const [value, setValue] = useState(initial.savings);
   const [now, setNow] = useState(initial.now);
 
   const refresh = useCallback(async (n = limit) => {
-    const [s, r, sc] = await Promise.all([get("/api/summary"), get(`/api/rounds?limit=${n + 1}`), get("/api/showcase")]).catch(() => [null, null, null]);
+    const [s, r, sc, v] = await Promise.all([get("/api/summary"), get(`/api/rounds?limit=${n + 1}`), get("/api/showcase"), get("/api/savings")]).catch(() => []);
+    if (v) setValue(v);
     if (s) setSummary(s);
     if (r) setRounds(r);
     if (sc) setShow(sc);
@@ -68,7 +72,9 @@ export default function Live({ initial, hero, children }) {
       <main className="wrap">
         <Leaderboard rows={summary.leaderboard} mistakeCost={summary.mistake_cost_usd}
           updated={summary.updated_at ? `Last round ${ago(summary.updated_at, now)}.` : ""} />
+        <Savings s={value} />
         <TryIt options={initial.options} onDone={() => refresh()} />
+        <JudgmentApi models={initial.options.models} terms={initial.terms} site={initial.site} />
         <Receipts receipts={show.receipts} telegraph={summary.telegraph} now={now} />
         <Rounds rounds={rounds.slice(0, limit)} now={now} more={rounds.length > limit && limit < 50}
           onMore={() => { const n = limit + 10; setLimit(n); refresh(n); }} />

@@ -49,6 +49,12 @@ export const config = {
   questionsPerRound: Number(env.QUESTIONS_PER_ROUND || 9),
   nvdKey: env.NVD_API_KEY || "",
   // Upstash Redis (Vercel's Upstash integration sets the KV_ names). When unset, data is kept in files under dataDir.
+  // The Judgment API, sold over x402. payTo defaults to the address of EVM_PRIVATE_KEY (never the key itself).
+  advicePrice: env.ADVICE_PRICE || "$0.002",
+  adviceNetwork: env.ADVICE_NETWORK || "eip155:84532",
+  payTo: env.PAY_TO || "",
+  facilitator: env.X402_FACILITATOR || "https://x402.org/facilitator",
+  previewPerHour: Number(env.PREVIEW_PER_HOUR) || 60,
   redisUrl: (env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL || "").replace(/\/$/, ""),
   redisToken: env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN || "",
   mock: env.MOCK === "1",                                // fake models and fake purchases, for trying the pipeline offline
