@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import ThemeButton from "./ThemeButton";
 import { Icon } from "./ui";
 
-const LINKS = [["leaderboard", "Leaderboard"], ["try", "Try it"], ["receipts", "Receipts"], ["rounds", "Rounds"], ["how", "Method"]];
+const LINKS = [["leaderboard", "Leaderboard"], ["value", "Savings"], ["try", "Try it"], ["api", "API"], ["receipts", "Receipts"], ["how", "Method"]];
 
 export default function Nav({ repo }) {
   const [active, setActive] = useState("");

@@ -40,6 +40,27 @@ Each round mixes live facts no model can remember with facts some models do:
 
 The truth for live data is fetched **after** every model has answered and bought. If no truth source answers, the question is voided, not guessed.
 
+## Judgment API: Confidant sells what it learns
+
+Every graded decision tells Confidant how often each model is right on each topic, and how often Telegraph is. Agents can buy that judgment before they trust a model:
+
+```
+GET /api/advice?model=anthropic/claude-sonnet-5.5&topic=crypto      → 402 Payment Required ($0.002 USDC, Base Sepolia)
+```
+
+Pay with any x402 client and retry; the reply says `"advice": "buy"` or `"answer"`, why, the expected cost of each choice, and how much history it rests on:
+
+```js
+const pay = wrapFetchWithPaymentFromConfig(fetch, { schemes: [{ network: "eip155:84532", client: new ExactEvmScheme(account) }] });
+const { advice, reason } = await (await pay("https://<site>/api/advice?model=deepseek/deepseek-v4.1-flash&topic=cve")).json();
+```
+
+Payments are verified and settled by the x402 facilitator and only charged when the advice is delivered ([a real one](https://sepolia.basescan.org/tx/0xe218749bddc712dcb7cbecc76f6630d491df71da43c7db972bb9852bca71725d)). `GET /api/advice/preview` gives the same answer free, a few dozen times an hour, for the website. Topics: `crypto`, `fx`, `weather`, `gas`, `cve`.
+
+So Confidant is both sides of the model economy: it **buys** intelligence from Telegraph miners and **sells** judgment to agents.
+
+**What the advice is worth** (`GET /api/savings`): the real decisions replayed under five strategies (trust the model, the models' own choices, always buy, follow Confidant, perfect hindsight), priced at $0.01 per purchase and $0.25 per mistake. Confidant's advice for each decision is computed without that decision's round, so it never sees the answer.
+
 ## Run it on your computer
 
 Needs Node 20.9 or newer.
@@ -118,12 +139,14 @@ src/round.mjs       one round, end to end
 src/store.mjs       rounds, leaderboard and daily spend
 src/kv.mjs          storage: files on a laptop, Upstash Redis when hosted
 src/api.mjs         what each API endpoint does
+src/advice.mjs      the advice and the strategy replay (tested)
+lib/x402.js         selling the advice over x402
 src/cli.mjs         round, check, wallet, import, remove
 app/                the Next.js site (page, layout, styles) and API routes (app/api/*)
 components/         the page's parts: leaderboard, try box, rounds, question cards
 .github/workflows/  the scheduled round
 ```
 
-API: `GET /api/summary`, `GET /api/rounds?limit=20`, `GET /api/rounds/<id>`, `GET /api/options`, `GET /api/health`, `POST /api/try` with `{ "category": "crypto", "subject": "BTC" }`.
+API: `GET /api/advice` (paid, x402), `GET /api/advice/preview`, `GET /api/savings`, `GET /api/showcase`, `GET /api/summary`, `GET /api/rounds?limit=20`, `GET /api/rounds/<id>`, `GET /api/options`, `GET /api/health`, `POST /api/try` with `{ "category": "crypto", "subject": "BTC" }`.
 
 MIT licence.

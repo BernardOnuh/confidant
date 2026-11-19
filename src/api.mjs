@@ -5,6 +5,7 @@ import { runRound } from "./round.mjs";
 import { allRounds, getRound, recentRounds, summary } from "./store.mjs";
 import { MOCK_MODELS } from "./models.mjs";
 import { incr, lock, unlock, usingRedis } from "./kv.mjs";
+import { advise, savings } from "./advice.mjs";
 
 const models = () => (config.mock ? MOCK_MODELS : config.models);
 
@@ -102,3 +103,26 @@ export async function showcase() {
   for (let i = 0; replay.length < 14 && i < 14; i++) for (const k of order) if (byKind[k]?.[i] && replay.length < 14) replay.push(byKind[k][i]);
   return [200, { replay, receipts }];
 }
+
+const visibleRounds = async () => (await allRounds()).filter(r => !r.mock || config.mock);
+
+// GET /api/advice?model=<openrouter id>&topic=<crypto|fx|weather|gas|cve>: should this model answer, or buy?
+export async function advice(query) {
+  const model = String(query.get("model") || "").trim(), topic = String(query.get("topic") || "").trim();
+  if (!/^[\w.-]+\/[\w.:-]+$/.test(model) || model.length > 100) return [400, { error: "model must be an OpenRouter id such as anthropic/claude-sonnet-5.5" }];
+  if (!CATEGORIES[topic]) return [400, { error: `topic must be one of ${Object.keys(CATEGORIES).join(", ")}` }];
+  const rounds = await visibleRounds();
+  return [200, { ...advise(rounds, { model, topic, mistake: config.mistakeCostUsd }), rounds: rounds.length, updated_at: rounds.at(-1)?.finished_at || null }];
+}
+
+// The same advice for people trying it on the website: free, a few dozen an hour.
+export async function advicePreview(query, ip) {
+  if ((await incr(`preview:${ip}`, 1, 3600)) > config.previewPerHour) return [429, { error: "preview limit reached; agents can call the paid endpoint" }];
+  return advice(query);
+}
+
+export async function getSavings() {
+  return [200, savings(await visibleRounds(), config.mistakeCostUsd)];
+}
+
+export const adviceTerms = () => ({ price: config.advicePrice, network: config.adviceNetwork, path: "/api/advice" });
