@@ -22,15 +22,18 @@ async function pool(items, limit, fn) {
   return out;
 }
 
-export async function runQuestion(q, { models, buyer, mock, log = () => {} }) {
+// onEvent, if given, hears each step as it happens: every decision, every purchase, the truth, then the graded question.
+export async function runQuestion(q, { models, buyer, mock, log = () => {}, onEvent = () => {} }) {
   const now = new Date();
   // In mock mode the fake models need the truth up front; for real runs it is fetched after they commit.
   const early = mock ? await mockTruth(q) : null;
   const decisions = await pool(models, 8, async model => {
     try {
-      const d = mock ? await mockAsk(model, q, early.value) : await ask(model, q, { now });
-      return { model, ...d };
+      const d = { model, ...(mock ? await mockAsk(model, q, early.value) : await ask(model, q, { now })) };
+      onEvent({ type: "decision", question: q.id, ...d });
+      return d;
     } catch (e) {
+      onEvent({ type: "decision", question: q.id, model, error: e.message });
       return { model, error: e.message };
     }
   });
@@ -43,6 +46,7 @@ export async function runQuestion(q, { models, buyer, mock, log = () => {} }) {
     }
     d.purchase = await buyer.buy(q.intent, q.params, q.field, q, early);
     if (d.purchase.ok && !mock) await recordSpend(d.purchase.cost_usd || 0);
+    onEvent({ type: "purchase", question: q.id, model: d.model, purchase: d.purchase });
     log(`  ${d.model} bought ${q.intent}: ${d.purchase.ok ? d.purchase.value : "failed, " + d.purchase.error}`);
   });
 
@@ -50,15 +54,20 @@ export async function runQuestion(q, { models, buyer, mock, log = () => {} }) {
   try {
     truth = early || await fetchTruth(q);
   } catch (e) {
-    return { ...q, asked_at: now.toISOString(), void: true, void_reason: e.message, entries: decisions };
+    const voided = { ...q, asked_at: now.toISOString(), void: true, void_reason: e.message, entries: decisions };
+    onEvent({ type: "graded", question: voided });
+    return voided;
   }
-  return {
+  onEvent({ type: "truth", question: q.id, truth: truth.value, source: truth.source });
+  const done = {
     ...q, asked_at: now.toISOString(), truth: truth.value, truth_source: truth.source,
     entries: decisions.map(d => d.error ? d : settle(d, truth.value, q.tolerance)),
   };
+  onEvent({ type: "graded", question: done });
+  return done;
 }
 
-export async function runRound({ questions, models = config.models, mock = config.mock, source = "scheduled", log = console.log } = {}) {
+export async function runRound({ questions, models = config.models, mock = config.mock, source = "scheduled", log = console.log, onEvent } = {}) {
   if (!mock && !config.openrouterKey) throw new Error("OPENROUTER_API_KEY is not set");
   if (mock) models = MOCK_MODELS;
   const buyer = mock ? makeMockBuyer() : makeBuyer();
@@ -67,7 +76,7 @@ export async function runRound({ questions, models = config.models, mock = confi
   log(`Round ${round.id}: ${questions.length} questions x ${models.length} models`);
   for (const q of questions) {
     log(`- ${q.prompt}`);
-    const done = await runQuestion(q, { models, buyer, mock, log });
+    const done = await runQuestion(q, { models, buyer, mock, log, onEvent });
     if (done.void) log(`  void: ${done.void_reason}`);
     else log(`  truth ${JSON.stringify(done.truth)} (${done.truth_source}); ` +
       done.entries.map(e => e.error ? `${short(e.model)} error` : `${short(e.model)} ${e.decision}${e.final_correct ? "✓" : e.final_correct === false ? "✗" : "-"}`).join(", "));

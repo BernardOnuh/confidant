@@ -1,5 +1,5 @@
 // The Confidant site. Rendered on the server with the latest results, then kept up to date in the browser.
-import { getSummary, listRounds, options } from "@/src/api.mjs";
+import { getSummary, listRounds, options, showcase } from "@/src/api.mjs";
 import Live from "@/components/Live";
 import ThemeButton from "@/components/ThemeButton";
 import { Icon } from "@/components/ui";
@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 const EMPTY = { rounds: 0, questions: 0, decisions: 0, leaderboard: [], telegraph: { purchases: 0, spent_usd: 0, correct: 0 }, mistake_cost_usd: 0.25, updated_at: null };
 
 export default async function Page() {
-  const [[, opts], summary, rounds] = await Promise.all([
+  const [[, opts], summary, rounds, show] = await Promise.all([
     options(),
     getSummary().then(([, s]) => s).catch(e => (console.error("summary:", e.message), EMPTY)),
     listRounds(11).then(([, r]) => r).catch(e => (console.error("rounds:", e.message), [])),
+    showcase().then(([, s]) => s).catch(e => (console.error("showcase:", e.message), { replay: [], receipts: [] })),
   ]);
   const mc = `$${summary.mistake_cost_usd.toFixed(2)}`;
 
@@ -20,11 +21,16 @@ export default async function Page() {
     <>
       <span className="eyebrow"><span className="live" />Live benchmark · Telegraph testnet</span>
       <h1>Which AI knows when it <em>doesn't</em> know?</h1>
-      <p className="lede">We ask AI models real-world questions, such as today's Bitcoin price or the temperature in Lagos. Each must decide whether to trust its own memory or pay for a verified answer. Then we measure who chose well.</p>
+      <p className="lede">{opts.models.length === 8 ? "Eight" : opts.models.length} AI models get real-world questions: today's Bitcoin price, the temperature in Lagos, a vulnerability's severity. Each must choose: trust its memory for free, or pay $0.01 on Telegraph for a verified answer. A confident wrong answer costs {mc}. We grade who chose well.</p>
       <div className="cta">
         <a className="btn primary" href="#try">Ask the models a question <Icon name="arrow" /></a>
-        <a className="btn ghost" href="#leaderboard">View the leaderboard</a>
+        <a className="btn ghost" href="#leaderboard">See who's winning</a>
       </div>
+    </>
+  );
+
+  const choice = (
+    <>
       <div className="choice" aria-label="The choice every model faces">
         <div className="opt">
           <span className="ic"><Icon name="cpu" size="lg" /></span>
@@ -50,6 +56,7 @@ export default async function Page() {
           <div className="links">
             <a href="#leaderboard">Leaderboard</a>
             <a href="#try">Try it</a>
+            <a href="#receipts">Receipts</a>
             <a href="#rounds">Rounds</a>
             <a href="#how">Method</a>
           </div>
@@ -57,9 +64,10 @@ export default async function Page() {
         </div>
       </nav>
 
-      <Live initial={{ summary, rounds, options: opts, now: Date.now() }} hero={hero}>
+      <Live initial={{ summary, rounds, options: opts, showcase: show, now: Date.now() }} hero={hero}>
         <section id="how">
-          <div className="shead"><div><p className="kicker">Method</p><h2>How it works</h2><p className="sub">Every model receives the same questions, the same prompt and the same prices.</p></div></div>
+          <div className="shead"><div><p className="kicker">Method</p><h2>How it works</h2><p className="sub">Every model receives the same questions, the same prompt and the same prices. This is the choice each one faces:</p></div></div>
+          <div style={{ marginBottom: 16 }}>{choice}</div>
           <div className="how">
             <div><span className="n">01</span><h3>Ask</h3><p>Each round mixes live facts no model can remember (prices, exchange rates, weather, gas, newly published vulnerabilities) with facts some models do know.</p></div>
             <div><span className="n">02</span><h3>Decide</h3><p>Each model gives its best guess, its confidence, and a decision: answer itself, or buy.</p></div>

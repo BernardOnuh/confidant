@@ -74,7 +74,7 @@ export function leaderboard(entries, mistakeCost = 0.25) {
   for (const e of entries) {
     if (e.error) continue;
     const r = by.get(e.model) || { model: e.model, questions: 0, graded: 0, correct: 0, good_calls: 0, bought: 0, overconfident: 0,
-      wasted_buys: 0, telegraph_usd: 0, llm_usd: 0, conf_sum: 0, guess_right: 0 };
+      wasted_buys: 0, telegraph_usd: 0, llm_usd: 0, conf_sum: 0, guess_right: 0, knew_answered: 0, missed_bought: 0 };
     r.questions++;
     r.good_calls += e.good_call ? 1 : 0;
     r.bought += e.decision === "buy" ? 1 : 0;
@@ -84,6 +84,8 @@ export function leaderboard(entries, mistakeCost = 0.25) {
     r.llm_usd += e.llm_cost_usd || 0;
     r.conf_sum += e.confidence ?? 0;
     r.guess_right += e.guess_correct ? 1 : 0;
+    r.knew_answered += e.guess_correct && e.decision !== "buy" ? 1 : 0;
+    r.missed_bought += !e.guess_correct && e.decision === "buy" ? 1 : 0;
     if (e.final_correct !== null && e.final_correct !== undefined) {
       r.graded++;
       r.correct += e.final_correct ? 1 : 0;
@@ -108,6 +110,8 @@ export function leaderboard(entries, mistakeCost = 0.25) {
       true_cost_per_question: (spend + wrong * mistakeCost) / r.questions,
       avg_confidence: r.conf_sum / r.questions,
       knew: r.guess_right / r.questions,                     // how often its own guess was right
+      // The four outcomes behind judgment: the two good calls and the two mistakes.
+      matrix: { knew_answered: r.knew_answered, knew_bought: r.wasted_buys, missed_bought: r.missed_bought, missed_answered: r.overconfident },
     };
   }).sort((a, b) => b.judgment - a.judgment || a.true_cost_per_question - b.true_cost_per_question);
 }
