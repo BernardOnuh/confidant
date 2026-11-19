@@ -37,12 +37,12 @@ export async function runQuestion(q, { models, buyer, mock, log = () => {} }) {
 
   // Purchases run a few at a time; each one is a separate, paid Telegraph request with its own receipt.
   await pool(decisions.filter(d => !d.error && d.decision === "buy"), 4, async d => {
-    if (spentToday() >= config.dailyBudgetUsd) {
+    if (await spentToday() >= config.dailyBudgetUsd) {
       d.purchase = { ok: false, error: `daily Telegraph budget of $${config.dailyBudgetUsd} reached` };
       return;
     }
     d.purchase = await buyer.buy(q.intent, q.params, q.field, q, early);
-    if (d.purchase.ok && !mock) recordSpend(d.purchase.cost_usd || 0);
+    if (d.purchase.ok && !mock) await recordSpend(d.purchase.cost_usd || 0);
     log(`  ${d.model} bought ${q.intent}: ${d.purchase.ok ? d.purchase.value : "failed, " + d.purchase.error}`);
   });
 
@@ -74,7 +74,7 @@ export async function runRound({ questions, models = config.models, mock = confi
     round.questions.push(done);
   }
   round.finished_at = new Date().toISOString();
-  saveRound(round);
+  await saveRound(round);
   return round;
 }
 

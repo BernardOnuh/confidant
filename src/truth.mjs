@@ -1,8 +1,7 @@
 // Ground truth from sources independent of Telegraph. Each source has a fallback,
 // and a question whose truth can't be fetched is voided rather than guessed.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
 import { config } from "./config.mjs";
+import { getJSON as kvGet, setJSON as kvSet } from "./kv.mjs";
 
 export async function getJSON(url, { timeout = 15000, headers = {}, method = "GET", body } = {}) {
   const res = await fetch(url, { method, headers: { "User-Agent": "confidant/0.1", ...headers }, body, signal: AbortSignal.timeout(timeout) });
@@ -95,12 +94,12 @@ export function cvssScores(cve) {
   return [...new Set(scores)];
 }
 
-function cachePath() { return join(config.dataDir, "cve-cache.json"); }
-function readCache() { try { return JSON.parse(readFileSync(cachePath(), "utf8")); } catch { return {}; } }
-function writeCache(c) { mkdirSync(config.dataDir, { recursive: true }); writeFileSync(cachePath(), JSON.stringify(c)); }
+// Scores don't change often, so they're cached for a week (in data/cve-cache.json, or Redis).
+const readCache = async () => (await kvGet("cve-cache").catch(() => null)) || {};
+const writeCache = c => kvSet("cve-cache", c).catch(() => {});
 
 export async function cvssTruth(id) {
-  const cache = readCache();
+  const cache = await readCache();
   if (cache[id] && Date.now() - cache[id].t < 7 * 864e5) return { value: cache[id].scores, source: "NVD (cached)" };
   const r = await nvd(`cveId=${encodeURIComponent(id)}`);
   const cve = r.vulnerabilities?.[0]?.cve;
@@ -108,7 +107,7 @@ export async function cvssTruth(id) {
   const scores = cvssScores(cve);
   if (!scores.length) throw new Error(`${id} has no CVSS v3/v4 score yet`);
   cache[id] = { scores, t: Date.now() };
-  writeCache(cache);
+  await writeCache(cache);
   return { value: scores, source: "NVD" };
 }
 
@@ -121,7 +120,7 @@ export async function recentCves(days = 20) {
   const end = new Date(), start = new Date(Date.now() - days * 864e5);
   const iso = d => d.toISOString().replace(/\.\d+Z$/, ".000");
   const r = await nvd(`pubStartDate=${iso(start)}&pubEndDate=${iso(end)}&noRejected&resultsPerPage=300`);
-  const cache = readCache();
+  const cache = await readCache();
   const out = [];
   for (const v of r.vulnerabilities || []) {
     const scores = cvssScores(v.cve);
@@ -129,6 +128,6 @@ export async function recentCves(days = 20) {
     cache[v.cve.id] = { scores, t: Date.now() };
     out.push(v.cve.id);
   }
-  writeCache(cache);
+  await writeCache(cache);
   return out;
 }
