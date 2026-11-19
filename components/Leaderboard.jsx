@@ -17,7 +17,7 @@ const COLS = [
 ];
 
 // One of the top three: its judgment score and the four outcomes behind it.
-function Podium({ r, place }) {
+export function Podium({ r, place }) {
   const m = r.matrix || {};
   const cell = (n, cls, label) => <div className={`c ${cls}${n ? "" : " zero"}`}>{n ?? 0}<small>{label}</small></div>;
   return (

@@ -1,84 +1,87 @@
-// The Confidant site. Rendered on the server with the latest results, then kept up to date in the browser.
-import { adviceTerms, getSavings, getSummary, listRounds, options, showcase } from "@/src/api.mjs";
-import Live from "@/components/Live";
-import Nav from "@/components/Nav";
+// Home: the question, a live replay of real decisions, the headline numbers, and a preview of every page.
+import Link from "next/link";
+import AutoRefresh from "@/components/AutoRefresh";
+import { Podium } from "@/components/Leaderboard";
+import Receipts from "@/components/Receipts";
+import Replay from "@/components/Replay";
+import { SavingsHeadline } from "@/components/Savings";
+import Stats from "@/components/Stats";
 import { Icon } from "@/components/ui";
+import { loadOptions, loadSavings, loadShowcase, loadSummary } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-const EMPTY = { rounds: 0, questions: 0, decisions: 0, leaderboard: [], telegraph: { purchases: 0, spent_usd: 0, correct: 0 }, mistake_cost_usd: 0.25, updated_at: null };
-
-export default async function Page() {
-  const [[, opts], summary, rounds, show, value] = await Promise.all([
-    options(),
-    getSummary().then(([, s]) => s).catch(e => (console.error("summary:", e.message), EMPTY)),
-    listRounds(11).then(([, r]) => r).catch(e => (console.error("rounds:", e.message), [])),
-    showcase().then(([, s]) => s).catch(e => (console.error("showcase:", e.message), { replay: [], receipts: [] })),
-    getSavings().then(([, s]) => s).catch(e => (console.error("savings:", e.message), null)),
-  ]);
-  const site = process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
-  const mc = `$${summary.mistake_cost_usd.toFixed(2)}`;
-
-  const hero = (
-    <>
-      <span className="eyebrow"><span className="live" />Live benchmark · Telegraph testnet</span>
-      <h1>Which AI knows when it <em>doesn't</em> know?</h1>
-      <p className="lede">{opts.models.length === 8 ? "Eight" : opts.models.length} AI models get real-world questions: today's Bitcoin price, the temperature in Lagos, a vulnerability's severity. Each must choose: trust its memory for free, or pay $0.01 on Telegraph for a verified answer. A confident wrong answer costs {mc}. We grade who chose well.</p>
-      <div className="cta">
-        <a className="btn primary" href="#try">Ask the models a question <Icon name="arrow" /></a>
-        <a className="btn ghost" href="#leaderboard">See who's winning</a>
-      </div>
-    </>
-  );
-
-  const choice = (
-    <>
-      <div className="choice" aria-label="The choice every model faces">
-        <div className="opt">
-          <span className="ic"><Icon name="cpu" size="lg" /></span>
-          <h3>Answer from memory</h3>
-          <p>Free, but a wrong answer costs its principal {mc}.</p>
-          <div className="price">$0.00<small>or −{mc} if wrong</small></div>
-        </div>
-        <div className="opt">
-          <span className="ic"><Icon name="shield-check" size="lg" /></span>
-          <h3>Buy a verified answer</h3>
-          <p>A real payment on the <a href="https://telegraphprotocol.com" target="_blank" rel="noopener">Telegraph</a> network, with a public receipt.</p>
-          <div className="price">$0.01<small>per answer</small></div>
-        </div>
-      </div>
-    </>
-  );
-
+export default async function Home() {
+  const [opts, summary, show, value] = await Promise.all([loadOptions(), loadSummary(), loadShowcase(), loadSavings()]);
+  const mc = `$${summary.mistake_cost_usd.toFixed(2)}`, now = Date.now(), n = opts.models.length;
   return (
     <>
-      <Nav repo="https://github.com/BernardOnuh/confidant" />
-
-      <Live initial={{ summary, rounds, options: opts, showcase: show, savings: value, terms: adviceTerms(), site, now: Date.now() }} hero={hero}>
-        <section id="how">
-          <div className="shead"><div><p className="kicker">Method</p><h2>How it works</h2><p className="sub">Every model receives the same questions, the same prompt and the same prices. This is the choice each one faces:</p></div></div>
-          <div style={{ marginBottom: 16 }}>{choice}</div>
-          <div className="how">
-            <div><span className="n">01</span><h3>Ask</h3><p>Each round mixes live facts no model can remember (prices, exchange rates, weather, gas, newly published vulnerabilities) with facts some models do know.</p></div>
-            <div><span className="n">02</span><h3>Decide</h3><p>Each model gives its best guess, its confidence, and a decision: answer itself, or buy.</p></div>
-            <div><span className="n">03</span><h3>Buy</h3><p>A buy is a real machine-to-machine payment on Telegraph testnet, in USDC over x402, with a verifiable receipt.</p></div>
-            <div><span className="n">04</span><h3>Grade</h3><p>Once every model has committed, the true answer is fetched from independent sources and every decision is scored.</p></div>
+      <AutoRefresh />
+      <header className="hero">
+        <div className="hero-bg" />
+        <div className="wrap">
+          <div className="hero-grid">
+            <div>
+              <span className="eyebrow"><span className="live" />Live benchmark · Telegraph testnet</span>
+              <h1>Which AI knows when it <em>doesn't</em> know?</h1>
+              <p className="lede">{n === 8 ? "Eight" : n} AI models get real-world questions: today's Bitcoin price, the temperature in Lagos, a vulnerability's severity. Each must choose: trust its memory for free, or pay $0.01 on Telegraph for a verified answer. A confident wrong answer costs {mc}. We grade who chose well.</p>
+              <div className="cta">
+                <Link className="btn primary" href="/try">Ask the models a question <Icon name="arrow" /></Link>
+                <Link className="btn ghost" href="/leaderboard">See who's winning</Link>
+              </div>
+              <div className="trust">
+                <span><Icon name="cpu" />{n} frontier models</span>
+                <span><Icon name="shield-check" />Real x402 payments</span>
+                <span><Icon name="check" />Graded against Coinbase, ECB, NIST</span>
+              </div>
+            </div>
+            <Replay items={show.replay} mistakeCost={summary.mistake_cost_usd} now={now} />
           </div>
-          <div className="faq">
-            <details><summary>Why does a wrong answer cost {mc}?<Icon name="plus" size="" /></summary><p>An AI agent acting for someone spends their money. A confident wrong answer, such as a stale price, causes real losses. The penalty puts a price on that, so a model that guesses blindly cannot win by being cheap.</p></details>
-            <details><summary>Is the money real?<Icon name="plus" size="" /></summary><p>Purchases are real x402 payments on Telegraph's testnet, settled in test USDC. They are genuine machine-to-machine transactions with verifiable receipts; no mainnet funds are spent.</p></details>
-            <details><summary>Where does the true answer come from?<Icon name="plus" size="" /></summary><p>From sources independent of Telegraph: Coinbase and CoinGecko for prices, ExchangeRate-API and the ECB for currencies, Open-Meteo and MET Norway for weather, the NIST National Vulnerability Database for CVEs, and public Ethereum nodes for gas. If none respond, the question is discarded rather than guessed.</p></details>
-            <details><summary>Can I inspect the code or run it myself?<Icon name="plus" size="" /></summary><p>Yes. The project is <a href="https://github.com/BernardOnuh/confidant" target="_blank" rel="noopener">open source</a>, including the exact prompt every model receives, so anyone can review or challenge it.</p></details>
+          <Stats summary={summary} />
+        </div>
+      </header>
+
+      <main className="wrap">
+        <section>
+          <div className="shead">
+            <div><p className="kicker">Leaderboard</p><h2>Ranked by judgment</h2>
+              <p className="sub">Not who knows the most, but who knows when to ask: paying only when its own answer would have been wrong.</p></div>
+            <Link className="toggle" href="/leaderboard">Full leaderboard <Icon name="arrow" /></Link>
+          </div>
+          {summary.leaderboard.length ? <div className="podium">{summary.leaderboard.slice(0, 3).map((r, i) => <Podium key={r.model} r={r} place={i} />)}</div>
+            : <div className="empty">No rounds yet. <Link href="/try">Ask the first question.</Link></div>}
+        </section>
+
+        {value?.decisions > 0 && (
+          <section>
+            <div className="shead">
+              <div><p className="kicker">What judgment is worth</p><h2>Following Confidant: {value.headline.vs_never_pct}% cheaper than trusting the model</h2>
+                <p className="sub">{value.decisions} real decisions replayed under five strategies, at $0.01 a purchase and {mc} a mistake.</p></div>
+              <Link className="toggle" href="/savings">All five strategies <Icon name="arrow" /></Link>
+            </div>
+            <SavingsHeadline s={value} />
+          </section>
+        )}
+
+        <section>
+          <div className="cards2">
+            <Link href="/try" className="bigcard">
+              <span className="kicker">Try it live</span>
+              <h3>Put a question to the models</h3>
+              <p>Watch each model guess, decide whether to pay, and get graded against the real world, live.</p>
+              <span className="go">Ask a question <Icon name="arrow" /></span>
+            </Link>
+            <Link href="/developers" className="bigcard gold">
+              <span className="kicker">For builders · Judgment API</span>
+              <h3>Ask Confidant before your agent trusts a model</h3>
+              <p>One call, $0.002 over x402: should this model answer, or should your agent buy a verified answer?</p>
+              <span className="go">See the API <Icon name="arrow" /></span>
+            </Link>
           </div>
         </section>
-      </Live>
 
-      <footer>
-        <div className="wrap">
-          <span>Confidant · Telegraph Hackathon Season II · Purchases run on testnet</span>
-          <a href="https://github.com/BernardOnuh/confidant" target="_blank" rel="noopener">Source code</a>
-        </div>
-      </footer>
+        <Receipts receipts={show.receipts} telegraph={summary.telegraph} now={now} limit={4} more />
+      </main>
     </>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 // Visitors pick a question; the models' answers stream in live: each card fills in as that model decides,
 // purchases appear with their receipts, then the true answer arrives and every card is graded.
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { HINTS, niceError, num, pct } from "@/lib/format";
 import { ErrorNote, Icon, Who } from "./ui";
@@ -50,7 +52,8 @@ function LiveCard({ model, e, unit }) {
   );
 }
 
-export default function TryIt({ options, onDone }) {
+export default function TryIt({ options }) {
+  const router = useRouter();
   const cats = Object.entries(options.categories);
   const [cat, setCat] = useState("crypto");
   const [subject, setSubject] = useState(options.categories.crypto?.subjects[0] ?? "");
@@ -109,7 +112,7 @@ export default function TryIt({ options, onDone }) {
         entries: Object.fromEntries(q.entries.map(e => [e.model, { ...e, graded: true }])) }));
     } else if (ev.type === "done") {
       setRun(r => ({ ...r, done: true, roundId: ev.round.id }));
-      onDone?.();
+      router.refresh();
     } else if (ev.type === "error") {
       setError(ev.error);
     }
@@ -171,7 +174,7 @@ export default function TryIt({ options, onDone }) {
                 <div className="truthbar">
                   <div><div className="kicker" style={{ margin: 0 }}>True answer · {run.truth.source}</div>
                     <div className="v">{Array.isArray(run.truth.value) ? run.truth.value.map(num).join(" or ") : num(run.truth.value)}<small>{run.question.unit}</small></div></div>
-                  {run.done && run.roundId && <a href={`#round-${run.roundId}`} className="faint" style={{ fontSize: 13 }}>Saved to past rounds</a>}
+                  {run.done && run.roundId && <Link href={`/rounds/${run.roundId}`} className="faint" style={{ fontSize: 13 }}>Saved as a round: open its page</Link>}
                 </div>
               )}
               {run.voided && <ErrorNote>Discarded: no trustworthy answer was available ({run.voided})</ErrorNote>}
