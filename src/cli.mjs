@@ -9,7 +9,8 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { sepolia, baseSepolia } from "viem/chains";
 import { config, NETWORKS, ROOT } from "./config.mjs";
 import { runRound } from "./round.mjs";
-import { summary } from "./store.mjs";
+import { allRounds, removeRound, saveRound, summary } from "./store.mjs";
+import { usingRedis } from "./kv.mjs";
 
 const args = process.argv.slice(2);
 const flag = name => { const i = args.indexOf("--" + name); return i === -1 ? null : args[i + 1] ?? true; };
@@ -87,6 +88,11 @@ async function check() {
   line(!!terms && terms.asset.toLowerCase() === net.asset.toLowerCase(), "Telegraph accepts this wallet's USDC",
     terms ? `$${Number(terms.amount) / 1e6} per answer on ${net.name}` : `no ${net.name} payment option from ${config.telegraphNode}`);
 
+  if (usingRedis()) {
+    const n = await allRounds().then(r => r.length).catch(e => (line(false, "Upstash Redis", e.message), null));
+    if (n !== null) line(true, "Upstash Redis", `${n} rounds stored`);
+  } else console.log("  ..   Storage: files in data/ (set KV_REST_API_URL and KV_REST_API_TOKEN to use Redis)");
+
   console.log(ready ? "\nReady: run `npm run round`." : "\nNot ready yet: fix the lines marked --.");
 }
 
@@ -96,7 +102,7 @@ async function round() {
   if (n) config.questionsPerRound = n;
   if (args.includes("--mock")) config.mock = true;
   await runRound({ models: typeof models === "string" ? models.split(",") : undefined, source: "cli" });
-  const s = summary();
+  const s = await summary();
   console.log("\nLeaderboard (all rounds):");
   for (const r of s.leaderboard) {
     console.log(`  ${r.model.padEnd(32)} judgment ${(r.judgment * 100).toFixed(0).padStart(3)}%  accuracy ${r.accuracy === null ? "  –" : (r.accuracy * 100).toFixed(0).padStart(3)}%  ` +
@@ -104,8 +110,33 @@ async function round() {
   }
 }
 
+// Copies the rounds kept in files (data/rounds) into Redis. Rounds already there are skipped.
+async function importRounds() {
+  if (!usingRedis()) throw new Error("set KV_REST_API_URL and KV_REST_API_TOKEN (from Vercel's Upstash settings) first");
+  const present = new Set((await allRounds()).map(r => r.id));
+  const dir = join(config.dataDir, "rounds");
+  const files = existsSync(dir) ? (await import("node:fs")).readdirSync(dir).filter(f => f.endsWith(".json")).sort() : [];
+  let n = 0;
+  for (const f of files) {
+    const r = JSON.parse(readFileSync(join(dir, f), "utf8"));
+    if (r.mock || present.has(r.id)) continue;
+    await saveRound(r); n++;
+  }
+  console.log(`Imported ${n} of ${files.length} rounds into Redis.`);
+}
+
+// Removes one round from Redis, e.g. a round spoiled by an outage: npm run remove -- <round id>
+async function remove() {
+  const id = args[1];
+  if (!/^[a-f0-9]{8}$/.test(id || "")) throw new Error("usage: npm run remove -- <8-character round id>");
+  await removeRound(id);
+  console.log(`Removed round ${id}.`);
+}
+
 const cmd = args[0];
 if (cmd === "wallet") await wallet();
 else if (cmd === "round") await round();
 else if (cmd === "check") await check();
-else console.log("usage: node src/cli.mjs round [--mock] [--questions N] [--models a,b] | wallet [mint] | check");
+else if (cmd === "import") await importRounds();
+else if (cmd === "remove") await remove();
+else console.log("usage: node src/cli.mjs round [--mock] [--questions N] [--models a,b] | wallet [mint] | check | import | remove <id>");

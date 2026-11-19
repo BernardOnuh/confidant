@@ -5,19 +5,26 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9"
   },
   "scripts": {
-    "start": "node src/server.mjs",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "round": "node src/cli.mjs round",
     "wallet": "node src/cli.mjs wallet",
-    "test": "node --test test/",
-    "check": "node src/cli.mjs check"
+    "check": "node src/cli.mjs check",
+    "import": "node src/cli.mjs import",
+    "remove": "node src/cli.mjs remove",
+    "test": "node --test test/"
   },
   "license": "MIT",
   "dependencies": {
     "@x402/evm": "^2.31.0",
     "@x402/fetch": "^2.31.0",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "undici": "^8.12.4",
     "viem": "^2.57.20"
   }

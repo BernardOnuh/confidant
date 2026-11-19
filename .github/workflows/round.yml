@@ -1,0 +1,33 @@
+name: Scheduled round
+
+# Runs a full benchmark round and saves it to the site's Upstash Redis. Vercel can't run long jobs on a timer, so
+# GitHub does: every 6 hours, or by hand from the Actions tab. Secrets: Settings → Secrets and variables → Actions.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      questions:
+        description: "Questions in the round"
+        default: "9"
+
+concurrency: { group: round, cancel-in-progress: false }
+
+jobs:
+  round:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - name: Run a round
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          EVM_PRIVATE_KEY: ${{ secrets.EVM_PRIVATE_KEY }}
+          PAY_NETWORK: ${{ secrets.PAY_NETWORK }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: npm run round -- --questions ${{ inputs.questions || '9' }}

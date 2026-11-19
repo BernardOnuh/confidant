@@ -40,9 +40,9 @@ Each round mixes live facts no model can remember with facts some models do:
 
 The truth for live data is fetched **after** every model has answered and bought. If no truth source answers, the question is voided, not guessed.
 
-## Run it
+## Run it on your computer
 
-Needs Node 20 or newer.
+Needs Node 20.9 or newer.
 
 ```bash
 npm install
@@ -58,17 +58,27 @@ Fund the wallet with test USDC (it is free):
 10 USDC pays for 1,000 purchases. x402 payments themselves need no gas.
 
 ```bash
-npm run check                   # checks the key, models, wallet balance and Telegraph's payment terms; spends nothing
+npm run check                   # checks the key, models, wallet, Telegraph's payment terms and storage; spends nothing
 npm run round                   # one round in the terminal
-npm start                       # the site on http://127.0.0.1:8800
-ROUND_EVERY_MIN=180 npm start   # the site, plus a round every 3 hours
+npm run dev                     # the site on http://localhost:3000
 ```
 
-Try it with no keys at all: `MOCK=1 npm start` uses three fake models and a fake miner.
+Try it with no keys at all: `MOCK=1 npm run dev` uses three fake models and a fake miner.
 
-```bash
-npm test
-```
+On your computer rounds are JSON files in `data/rounds`.
+
+## Host it on Vercel
+
+The site is a Next.js app. On Vercel the rounds live in **Upstash Redis** (free tier), and scheduled rounds run from **GitHub Actions**, because Vercel functions can't run long jobs on a timer.
+
+1. **Import the repo** at [vercel.com/new](https://vercel.com/new). Vercel detects Next.js; keep the defaults.
+2. **Add storage:** in the project, open **Storage → Create Database → Upstash for Redis** (free), and connect it to the project. This adds `KV_REST_API_URL` and `KV_REST_API_TOKEN`.
+3. **Environment variables** (Settings → Environment Variables): `OPENROUTER_API_KEY`, `EVM_PRIVATE_KEY` and `PAY_NETWORK` (same values as your `.env`). Optional: `NVD_API_KEY`, `TRY_PER_HOUR`, `DAILY_BUDGET_USD`.
+4. **Redeploy** so the variables take effect.
+5. **Scheduled rounds:** in GitHub, **Settings → Secrets and variables → Actions**, add the same `OPENROUTER_API_KEY`, `EVM_PRIVATE_KEY`, `PAY_NETWORK`, plus `KV_REST_API_URL` and `KV_REST_API_TOKEN` (copy them from Vercel's Upstash page). `.github/workflows/round.yml` then runs a round every 6 hours. Run one now from **Actions → Scheduled round → Run workflow**.
+6. **Bring over past rounds** (optional): put the two `KV_` values in your `.env` and run `npm run import`. `npm run remove -- <round id>` deletes a round that went wrong.
+
+The **Try it** box runs on Vercel itself: one question, every model, in up to 5 minutes (`maxDuration` in `app/api/try/route.js`). One visitor question runs at a time, and each visitor gets `TRY_PER_HOUR` (3) per hour.
 
 ## How a purchase works
 
@@ -105,8 +115,15 @@ src/models.mjs      the prompt and the OpenRouter call
 src/telegraph.mjs   x402 purchases from Telegraph
 src/grade.mjs       grading and the leaderboard (tested)
 src/round.mjs       one round, end to end
-src/server.mjs      the site and its API
-web/index.html      the page
+src/store.mjs       rounds, leaderboard and daily spend
+src/kv.mjs          storage: files on a laptop, Upstash Redis when hosted
+src/api.mjs         what each API endpoint does
+src/cli.mjs         round, check, wallet, import, remove
+app/                the Next.js site (page, layout, styles) and API routes (app/api/*)
+components/         the page's parts: leaderboard, try box, rounds, question cards
+.github/workflows/  the scheduled round
 ```
+
+API: `GET /api/summary`, `GET /api/rounds?limit=20`, `GET /api/rounds/<id>`, `GET /api/options`, `GET /api/health`, `POST /api/try` with `{ "category": "crypto", "subject": "BTC" }`.
 
 MIT licence.
