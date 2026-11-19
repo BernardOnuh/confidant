@@ -16,6 +16,25 @@ const COLS = [
   ["True cost / q", "All spend plus the cost of each mistake, per question. Lower is better.", true],
 ];
 
+// One of the top three: its judgment score and the four outcomes behind it.
+function Podium({ r, place }) {
+  const m = r.matrix || {};
+  const cell = (n, cls, label) => <div className={`c ${cls}${n ? "" : " zero"}`}>{n ?? 0}<small>{label}</small></div>;
+  return (
+    <div className={`pod${place === 0 ? " first" : ""}`}>
+      <div className="place"><span>{["1ST", "2ND", "3RD"][place]}</span><Profile r={r} /></div>
+      <Who model={r.model} />
+      <div className="score">{pct(r.judgment)}<small>judgment</small></div>
+      <div className="sub2">{r.questions} decisions · {pct(r.accuracy)} accurate · bought {pct(r.buy_rate)} of the time</div>
+      <div className="matrix" aria-label="What it did when it knew the answer, and when it didn't">
+        <span /><span className="h">Answered</span><span className="h">Bought</span>
+        <span className="rl">Knew it</span>{cell(m.knew_answered, "good", "right call")}{cell(m.knew_bought, "meh", "wasted $0.01")}
+        <span className="rl">Didn't</span>{cell(m.missed_answered, "bad", "overconfident")}{cell(m.missed_bought, "good", "right to buy")}
+      </div>
+    </div>
+  );
+}
+
 export default function Leaderboard({ rows, updated, mistakeCost }) {
   const [all, setAll] = useState(false);
   const rank = i => String(i + 1).padStart(2, "0");
@@ -29,6 +48,12 @@ export default function Leaderboard({ rows, updated, mistakeCost }) {
         </div>
         <button className="toggle" id="more-cols" onClick={() => setAll(!all)}><Icon name="sliders" /><span>{all ? "Fewer metrics" : "All metrics"}</span></button>
       </div>
+
+      {rows.length > 0 && (
+        <div className="podium">
+          {rows.slice(0, 3).map((r, i) => <Podium key={r.model} r={r} place={i} />)}
+        </div>
+      )}
 
       <div className={`tablewrap lbtable ${all ? "show-extra" : ""}`}>
         <table>
