@@ -1,7 +1,7 @@
 // The Confidant site. Rendered on the server with the latest results, then kept up to date in the browser.
 import { getSummary, listRounds, options, showcase } from "@/src/api.mjs";
 import Live from "@/components/Live";
-import ThemeButton from "@/components/ThemeButton";
+import Nav from "@/components/Nav";
 import { Icon } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -50,19 +50,7 @@ export default async function Page() {
 
   return (
     <>
-      <nav>
-        <div className="wrap">
-          <a className="brand" href="#top"><svg className="logo" aria-hidden="true"><use href="#i-logo" /></svg>Confidant</a>
-          <div className="links">
-            <a href="#leaderboard">Leaderboard</a>
-            <a href="#try">Try it</a>
-            <a href="#receipts">Receipts</a>
-            <a href="#rounds">Rounds</a>
-            <a href="#how">Method</a>
-          </div>
-          <ThemeButton />
-        </div>
-      </nav>
+      <Nav repo="https://github.com/BernardOnuh/confidant" />
 
       <Live initial={{ summary, rounds, options: opts, showcase: show, now: Date.now() }} hero={hero}>
         <section id="how">
