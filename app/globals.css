@@ -566,3 +566,26 @@ table.endpoints td.gold { color: var(--accent); font-family: var(--mono); }
 .page .round summary .ps { white-space: normal; }
 @media (max-width: 1180px) { .brand .net { display: none; } .links a { padding: 6px 9px; } }
 @media (max-width: 960px) { .cards2 { grid-template-columns: 1fr; } }
+
+/* phone menu */
+.menu-btn { display: none; }
+.wide-only { display: contents; }
+.mnav { position: fixed; inset: 56px 0 0 0; z-index: 30; background: var(--bg); border-top: 1px solid var(--line); overflow-y: auto; animation: pop .2s ease; }
+.mnav ul { list-style: none; margin: 0; padding: 8px 0; }
+.mnav li a { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; padding: 14px 4px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+.mnav li a b { font-size: 17px; font-weight: 600; }
+.mnav li a small { grid-column: 1; color: var(--faint); font-size: 13px; }
+.mnav li a .i { grid-column: 2; grid-row: 1 / span 2; color: var(--faint); }
+.mnav li a.on b { color: var(--accent); }
+.mnav-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 4px 32px; }
+.mnav-foot .toggle { gap: 8px; }
+.mnav-theme { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; }
+@media (max-width: 860px) {
+  nav .wrap { flex-wrap: nowrap; height: 56px; padding-top: 0; gap: 12px; }
+  .links, .wide-only, .brand .net { display: none !important; }
+  .nav-end { margin-left: auto; gap: 8px; }
+  .menu-btn { display: grid; }
+  .nav-cta { padding: 7px 12px; font-size: 13px; }
+  html { scroll-padding-top: 70px; }
+}
+nav.menu-open { background: var(--bg); }
