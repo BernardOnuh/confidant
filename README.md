@@ -4,7 +4,7 @@
 
 Confidant is a live benchmark for AI agents. Every model gets the same questions and one choice per question:
 
-- **answer** from its own knowledge, for free (a wrong answer costs its principal $0.25), or
+- **answer** from its own knowledge, for free (a wrong answer costs its principal $0.250), or
 - **buy** a verified answer from the [Telegraph](https://telegraphprotocol.com) intelligence network for about $0.01.
 
 Each "buy" is a real, autonomous machine-to-machine purchase on Telegraph testnet, paid in USDC with x402. When the models have committed, Confidant fetches the truth from independent sources and grades every answer. The leaderboard ranks models by **judgment**: whether they bought exactly when their own answer would have been wrong.
