@@ -1,19 +1,57 @@
-# Confidant
+<div align="center">
 
-**Which AI knows when it doesn't know?**
+<img src="brand/banner-x.png" alt="Confidant" width="100%">
 
-Confidant is a live benchmark for AI agents. Every model gets the same questions and one choice per question:
+### Which AI knows when it doesn't know?
 
-- **answer** from its own knowledge, for free (a wrong answer costs its principal $0.250), or
-- **buy** a verified answer from the [Telegraph](https://telegraphprotocol.com) intelligence network for about $0.01.
+**A live benchmark where AI models choose: trust their own memory for free, or pay [Telegraph](https://telegraphprotocol.com) $0.01 for a verified answer.**
 
-Each "buy" is a real, autonomous machine-to-machine purchase on Telegraph testnet, paid in USDC with x402. When the models have committed, Confidant fetches the truth from independent sources and grades every answer. The leaderboard ranks models by **judgment**: whether they bought exactly when their own answer would have been wrong.
+[![Live site](https://img.shields.io/badge/live-confidant--seven.vercel.app-E9B949?style=flat-square&labelColor=0c0c0e)](https://confidant-seven.vercel.app)
+[![Telegraph H2](https://img.shields.io/badge/Telegraph%20Hackathon%20S2-Apps%20%26%20Agents%20·%20Model%20Economy-E9B949?style=flat-square&labelColor=0c0c0e)](https://hackathon.telegraphprotocol.com)
+[![x402](https://img.shields.io/badge/payments-x402%20·%20test%20USDC-ededef?style=flat-square&labelColor=0c0c0e)](#how-a-purchase-works)
+[![Next.js](https://img.shields.io/badge/Next.js-on%20Vercel-ededef?style=flat-square&labelColor=0c0c0e)](#host-it-on-vercel)
+[![MIT](https://img.shields.io/badge/licence-MIT-ededef?style=flat-square&labelColor=0c0c0e)](LICENSE)
 
-Built for Telegraph Hackathon Season II, Apps & Agents track, mission **Model Economy** ("a leaderboard in cost per verified correct answer").
+**[Live site](https://confidant-seven.vercel.app)** · **[For judges](#for-judges)** · **[How it works](#how-it-works)** · **[Judgment API](#judgment-api-confidant-sells-what-it-learns)** · **[Run it](#run-it-on-your-computer)**
+
+</div>
+
+---
+
+<img src="docs/img/hero.jpg" alt="A real decision replayed: Llama 4 Maverick guessed 28 °C for Lagos from memory, the true answer was 30.9 °C, so it was overconfident and cost $0.25" width="100%">
+
+## The idea in 30 seconds
+
+AI agents answer questions with money on the line. Every time, they face the same quiet choice: **trust the model, or pay for verified data?** Get it wrong one way and you waste money on data you didn't need. Get it wrong the other way and a confident wrong answer costs you far more.
+
+Confidant turns that choice into a live contest. Eight models (Claude, GPT, Gemini, Grok, DeepSeek, Llama, Qwen, Mistral) get the same real-world questions, and for each one they decide:
+
+| | Choice | Cost |
+|---|---|---|
+| 🧠 | **Answer from memory** | Free, but a wrong answer costs its principal **$0.25** |
+| 🛒 | **Buy a verified answer on Telegraph** | About **$0.01**, a real machine-to-machine payment with x402 |
+
+When every model has committed, Confidant fetches the truth from **independent sources** (Coinbase, the ECB, Open-Meteo, NIST and others) and grades everyone. The leaderboard ranks models by **judgment**: did they buy exactly when their own answer would have been wrong?
+
+Then Confidant **sells what it learned**: any agent can pay $0.002 over x402 to ask "should model X trust itself on topic Y?" So it **buys** intelligence from Telegraph and **sells** judgment to agents: both sides of the model economy.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Q[Live question<br/>BTC price, Lagos temperature,<br/>a new CVE...] --> M{8 models decide}
+    M -- answer from memory --> G[Grade against<br/>independent truth]
+    M -- buy for $0.01 --> T[Telegraph testnet<br/>x402 payment, signal_hash, receipt]
+    T --> G
+    G --> L[Leaderboard<br/>judgment, accuracy, cost per correct answer]
+    G --> A[Judgment API<br/>sells buy-or-answer advice for $0.002]
+```
 
 ## For judges
 
 **Track:** Apps & Agents · **Mission:** 10, Model Economy · **Network:** Telegraph testnet, paid in test USDC on Base Sepolia (`eip155:84532`) with x402. Nothing here is mainnet or paying-customer usage.
+
+<img src="docs/img/judges.jpg" alt="The site: live replay of real decisions, the top 3 by judgment, and every Telegraph purchase with its receipt" width="100%">
 
 ### Try it in five steps
 
@@ -93,6 +131,8 @@ Payments are verified and settled by the x402 facilitator and only charged when 
 
 So Confidant is both sides of the model economy: it **buys** intelligence from Telegraph miners and **sells** judgment to agents.
 
+<img src="docs/img/judgment-api.jpg" alt="The Judgment API: a live verdict, the x402 call an agent makes, and what following the advice is worth" width="100%">
+
 **What the advice is worth** (`GET /api/savings`): the real decisions replayed under five strategies (trust the model, the models' own choices, always buy, follow Confidant, perfect hindsight), priced at $0.01 per purchase and $0.25 per mistake. Confidant's advice for each decision is computed without that decision's round, so it never sees the answer.
 
 ## Run it on your computer
@@ -123,6 +163,8 @@ Try it with no keys at all: `MOCK=1 npm run dev` uses three fake models and a fa
 On your computer rounds are JSON files in `data/rounds`.
 
 ## Host it on Vercel
+
+<img src="docs/img/architecture.jpg" alt="Architecture: browser and GitHub Actions call the Next.js app on Vercel, which uses Upstash Redis and calls OpenRouter, Telegraph and independent truth sources" width="100%">
 
 The site is a Next.js app. On Vercel the rounds live in **Upstash Redis** (free tier), and scheduled rounds run from **GitHub Actions**, because Vercel functions can't run long jobs on a timer.
 
@@ -161,7 +203,8 @@ The node answers `402 Payment Required`, the x402 client signs a USDC transfer a
 - CVSS has several versions; any score NVD lists for the CVE counts.
 - Runs on Telegraph **testnet**. Purchases are real x402 payments in test USDC, not mainnet funds.
 
-## Layout
+<details>
+<summary><b>Project layout and API routes</b></summary>
 
 ```
 src/questions.mjs   categories, Intents, prompts, tolerances
@@ -184,4 +227,14 @@ components/         the page's parts: leaderboard, try box, rounds, question car
 
 API: `GET /api/advice` (paid, x402), `GET /api/advice/preview`, `GET /api/savings`, `GET /api/showcase`, `GET /api/summary`, `GET /api/rounds?limit=20`, `GET /api/rounds/<id>`, `GET /api/options`, `GET /api/health`, `POST /api/try` with `{ "category": "crypto", "subject": "BTC" }`.
 
-MIT licence.
+</details>
+
+## Credits
+
+Built on [Telegraph](https://telegraphprotocol.com) (testnet intelligence network), [x402](https://x402.org) payments, [OpenRouter](https://openrouter.ai) for the eight contestant models, [Next.js](https://nextjs.org) on [Vercel](https://vercel.com), [Upstash Redis](https://upstash.com), and independent truth from Coinbase, CoinGecko, Kraken, ExchangeRate-API, Frankfurter (ECB), Open-Meteo, MET Norway, public Ethereum RPCs and NIST NVD.
+
+## Licence
+
+[MIT](LICENSE)
+
+<div align="center"><br><img src="brand/logo-mark.svg" width="44" alt="Confidant"><br><sub>Know when you don't know.</sub></div>
