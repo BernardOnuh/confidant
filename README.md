@@ -11,6 +11,40 @@ Each "buy" is a real, autonomous machine-to-machine purchase on Telegraph testne
 
 Built for Telegraph Hackathon Season II, Apps & Agents track, mission **Model Economy** ("a leaderboard in cost per verified correct answer").
 
+## For judges
+
+**Track:** Apps & Agents · **Mission:** 10, Model Economy · **Network:** Telegraph testnet, paid in test USDC on Base Sepolia (`eip155:84532`) with x402. Nothing here is mainnet or paying-customer usage.
+
+### Try it in five steps
+
+| Step | How |
+|---|---|
+| **Run it** with a new input | On the site, open **Try it**, pick a category and a subject (a coin, a city, a currency), or type any CVE ID. Every model decides to answer or buy, live. Or `POST /api/try` with `{ "category": "crypto", "subject": "SOL" }`. |
+| **Check** the result | Each card shows every model's guess, whether it bought, the Telegraph answer, the independent truth and the grade. |
+| **Inspect** the Telegraph purchase | Every buy stores its `signal_hash` and x402 receipt. Open `/receipts`, or check any hash at `https://devnode.telegraphprotocol.com/engine/v1/signal/<signal_hash>`. |
+| **Break** it | Send a subject that isn't on the list: the API refuses it (400). Ask about a CVE ID that doesn't exist, e.g. `CVE-2026-99999`: the truth sources find nothing, so the question is **voided, not guessed**. Ask a 4th time in an hour on the hosted site: the rate limit refuses it (429). Set `DAILY_BUDGET_USD=0`: buying stops and models must answer alone. |
+| **Reproduce** it | Follow [Run it on your computer](#run-it-on-your-computer): an OpenRouter key, a testnet wallet from `npm run wallet` and test USDC from the Circle faucet, then `npm run round`. |
+
+### Evidence from the event (recorded rounds, 16 November 2026)
+
+| | |
+|---|---|
+| Paid Telegraph purchases | **75** succeeded, 14 failed (recorded with the error, never retried silently) |
+| Spend | **$0.75** test USDC, $0.01 per answer |
+| Latency per purchase | median **7.4 s**, 90th percentile 10.5 s, including the x402 payment |
+| Intents bought | `CRYPTO_PRICE_USD` 35 · `WEATHER_CHECK_TEMPERATURE` 16 · `GAS_PRICE_GENERAL` 9 · `CVE_LOOKUP_CVSS` 8 · `FX_NOW_EUR` 7 |
+| Providers that answered | OnChain Intel Miner, Wx Openmeteo, Cp Coinbase, ChainSight, ExchangeRate-API v4 FX Now, Etherscan Gas Oracle v2 |
+| Example purchase | signal `0x28a62b2baa9d133873b984b580d8199c9f611304ad12363c728f75d0b407b5c3`, receipt `0x08be9338c4bf0dd84edb5b6f32da9e27aa0ef51b316939a674e905f7610203ba` |
+| Confidant selling over x402 | [Judgment API payment on Base Sepolia](https://sepolia.basescan.org/tx/0xe218749bddc712dcb7cbecc76f6630d491df71da43c7db972bb9852bca71725d) |
+
+### Commercial summary
+
+1. **Who is it for?** Teams running AI agents that answer questions with money or reputation at stake (support bots, trading and research agents, ops copilots). They face the same choice on every request: trust the model, or pay for verified data.
+2. **What does it improve?** Today they guess, or pay for data on every call. Confidant measures, per model and per topic, when a model's own answer is right, so an agent buys only when it should. The leaderboard reports cost per correct answer and the true cost once mistakes are priced in, and it audits how often paid Telegraph answers were right.
+3. **What does it do today?** Live rounds and visitor questions across eight models and five Intents, real x402 purchases from Telegraph testnet (above), independent grading with fallbacks, and the Judgment API, which sells "buy or answer?" advice for $0.002 over x402.
+4. **Why would someone adopt it?** One cheap call before trusting a model saves both wasted data purchases and $0.25-style mistakes. Before production it needs mainnet Telegraph, more Intents and question types, more history per model and topic, and an SLA on the advice endpoint.
+5. **How can someone try it?** On the live site (Try it, Leaderboard, Receipts, Developers), by calling `GET /api/advice/preview` free, or by running it locally from this README. Maintained by [@BernardOnuh](https://github.com/BernardOnuh).
+
 ## What it measures
 
 | Metric | Meaning |
