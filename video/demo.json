@@ -1,0 +1,27 @@
+{
+ "voice": {
+  "name": "Lily (ElevenLabs)",
+  "elevenlabs_voice_id": "pFZP5JQG7iQjIQuC4Bku",
+  "model_id": "eleven_v3",
+  "settings": { "stability": 0.5, "similarity_boost": 0.8 }
+ },
+ "lead_in": 0.8,
+ "tail": 2.5,
+ "lines": [
+  { "id": "d1", "scene": "intro", "gap": 0.5, "text": "This is Confidant. Which AI knows when it doesn't know?" },
+  { "id": "d2", "scene": "problem", "gap": 0.6, "text": "Every AI agent faces the same choice: trust the model's memory for free, or pay for verified data." },
+  { "id": "d4", "scene": "rules", "gap": 0.6, "text": "So we made it a contest. Eight models, the same live questions. Answer from memory, and a mistake costs twenty-five cents. Or buy a verified answer from Telegraph, for one cent." },
+  { "id": "d5", "scene": "question", "gap": 0.4, "text": "A real one, from November sixteenth: what's the temperature in Lagos right now?" },
+  { "id": "d6", "scene": "decide", "gap": 0.6, "text": "Llama trusted its memory: twenty-eight degrees. Four other models bought." },
+  { "id": "d7", "scene": "request", "gap": 0.3, "text": "Each buy is a real machine-to-machine payment.", "speak": "Each buy is a real machine-to-machine payment." },
+  { "id": "d8", "scene": "request", "gap": 0.6, "text": "Telegraph replies 402, payment required. The x402 client signs one cent of USDC, and retries.", "speak": "Telegraph replies four-oh-two, payment required. The x four-oh-two client signs one cent of U S D C, and retries." },
+  { "id": "d9", "scene": "evidence", "gap": 0.6, "text": "Miner Wx Openmeteo answers 31.1 degrees, with a signal hash anyone can verify, and a receipt settled on Base Sepolia.", "speak": "Miner W X Open-Meteo answers thirty-one point one degrees, with a signal hash anyone can verify, and a receipt settled on Base Sepolia." },
+  { "id": "d10", "scene": "grade", "gap": 0.6, "text": "The independent truth: 30.9. The buyers were right. Llama was overconfident: minus twenty-five cents.", "speak": "The independent truth: thirty point nine. The buyers were right. Llama was overconfident: minus twenty-five cents." },
+  { "id": "d11", "scene": "leaderboard", "gap": 0.5, "text": "The leaderboard ranks models by judgment, not by who knows the most." },
+  { "id": "d12", "scene": "receipts", "gap": 0.5, "text": "Seventy-five answers bought so far, ninety-one percent correct. So Confidant audits Telegraph too." },
+  { "id": "d13", "scene": "api", "gap": 0.4, "text": "And it sells what it learns: the Judgment API tells any agent whether to trust a model or buy, for a fifth of a cent." },
+  { "id": "d14", "scene": "savings", "gap": 0.5, "text": "Following its advice is eighty-five percent cheaper than trusting the model." },
+  { "id": "d15", "scene": "try", "gap": 0.5, "text": "Try it on the live site, or run it yourself with npm run round." },
+  { "id": "d17", "scene": "outro", "gap": 0.5, "text": "Built on Telegraph testnet, open source. Confidant: know when you don't know." }
+ ]
+}

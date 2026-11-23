@@ -1,0 +1,325 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; background: #0c0c0e; overflow: hidden; }
+  canvas { position: absolute; inset: 0; }
+  #imgs { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div id="imgs">
+  <img id="banner" src="../brand/banner-x.png">
+  <img id="s-home" src="shots/home.png">
+  <img id="s-method" src="shots/method.png">
+  <img id="s-leaderboard" src="shots/leaderboard.png">
+  <img id="s-receipts" src="shots/receipts.png">
+  <img id="s-developers" src="shots/developers.png">
+  <img id="s-savings" src="shots/savings.png">
+  <img id="s-try" src="shots/try.png">
+</div>
+<script src="timeline.js"></script>
+<script>
+// The Confidant demo: one real decision (Lagos, 16 Nov) end to end, then the site. Scene times come from timeline.js
+// (written by audio.py from the narration). render(t) draws frame t; render_frames.py calls it once per frame.
+const W = 1920, H = 1080;
+const BG = "#0c0c0e", INK = "#ededef", MUTED = "#8b8b93", GOLD = "#E9B949", GOLD2 = "#FCE38A", GREEN = "#4ade80", RED = "#f87171", LINE = "rgba(255,255,255,.1)";
+const SANS = '-apple-system, "SF Pro Display", Inter, "Helvetica Neue", Arial, sans-serif', MONO = '"SF Mono", Menlo, "IBM Plex Mono", monospace';
+const ctx = document.getElementById("c").getContext("2d");
+const img = id => document.getElementById(id);
+const SC = window.SCENES, LINES = window.LINES;
+window.DURATION = window.TOTAL;
+
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const out3 = k => 1 - Math.pow(1 - k, 3);
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lineAt = id => LINES.find(l => l.id === id);
+const from = (id, d = 0) => lineAt(id).start + d;          // seconds after a narration line starts
+const frac = (id, k) => { const l = lineAt(id); return l.start + k * (l.end - l.start); };   // k of the way through a line
+
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function text(s, x, y, size, color = INK, o = {}) {
+  ctx.save(); if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
+  ctx.font = `${o.weight || 600} ${size}px ${o.mono ? MONO : SANS}`; ctx.fillStyle = color;
+  ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "alphabetic";
+  if (o.spacing) ctx.letterSpacing = o.spacing + "px";
+  ctx.fillText(s, x, y); ctx.restore();
+}
+function width(s, size, o = {}) { ctx.save(); ctx.font = `${o.weight || 600} ${size}px ${o.mono ? MONO : SANS}`; if (o.spacing) ctx.letterSpacing = o.spacing + "px"; const w = ctx.measureText(s).width; ctx.restore(); return w; }
+function card(x, y, w, h, o = {}) {
+  ctx.save(); if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = 40; }
+  rr(x, y, w, h, o.r ?? 18); ctx.fillStyle = o.fill || "#141417"; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.lineWidth = o.lw || 1.5; ctx.strokeStyle = o.stroke || LINE; ctx.stroke(); ctx.restore();
+}
+function eyebrow(s, x, y, alpha = 1, color = GOLD) { text(s, x, y, 22, color, { mono: true, weight: 500, spacing: 4, alpha }); }
+
+function backdrop(t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W * .85, -100, 50, W * .85, -100, 1100);
+  g.addColorStop(0, "rgba(233,185,73,.10)"); g.addColorStop(1, "rgba(233,185,73,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(255,255,255,.025)"; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+}
+
+function mark(x, y, r, k = 1) {                         // the Confidant mark: a gold arc and a dot
+  ctx.save(); ctx.translate(x, y);
+  const g = ctx.createLinearGradient(-r, -r, r, r); g.addColorStop(0, GOLD2); g.addColorStop(.45, GOLD); g.addColorStop(1, "#B07D1E");
+  ctx.strokeStyle = g; ctx.lineWidth = r * .32; ctx.lineCap = "round";
+  const a0 = -0.68, sweep = 2 * Math.PI - 1.36;
+  ctx.beginPath(); ctx.arc(0, 0, r, a0 - sweep * k, a0, false); ctx.stroke();
+  if (k > .95) { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(r * 1.18, 0, r * .2, 0, 7); ctx.fill(); }
+  ctx.restore();
+}
+
+// A browser window showing a real screenshot of the site, scrolled to y (CSS px of the 1600-wide page).
+function browser(id, path, y, o = {}) {
+  const x = o.x ?? 160, top = o.top ?? 100, w = o.w ?? 1600, h = o.h ?? 800, im = img(id);
+  const scale = w / im.naturalWidth;
+  card(x, top, w, h, { r: 16, fill: "#0c0c0e", stroke: "rgba(255,255,255,.14)", glow: "rgba(0,0,0,.6)" });
+  ctx.save(); rr(x, top, w, 52, [16, 16, 0, 0]); ctx.fillStyle = "#18181b"; ctx.fill();
+  ["#ff5f57", "#febc2e", "#28c840"].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 28 + i * 24, top + 26, 7, 0, 7); ctx.fill(); });
+  rr(x + 140, top + 12, w - 280, 28, 8); ctx.fillStyle = "#0c0c0e"; ctx.fill();
+  text("🔒 confidant-seven.vercel.app" + path, x + w / 2, top + 32, 17, MUTED, { align: "center", weight: 500 });
+  ctx.restore();
+  ctx.save(); rr(x, top + 52, w, h - 52, [0, 0, 16, 16]); ctx.clip();
+  ctx.drawImage(im, 0, (y * 2), im.naturalWidth, (h - 52) / scale, x, top + 52, w, h - 52);
+  ctx.restore();
+  return { x, y: top + 52, s: w / 1600, scrollY: y, frame: [x, top + 52, w, h - 52] };
+}
+function highlight(b, cx, cy, cw, ch, alpha, label) {    // a gold box around a region of the page (CSS px)
+  if (alpha <= 0) return;
+  const x = b.x + cx * b.s, y = b.y + (cy - b.scrollY) * b.s, w = cw * b.s, h = ch * b.s;
+  ctx.save(); ctx.beginPath(); ctx.rect(b.frame[0] - 40, b.frame[1] - 60, b.frame[2] + 80, b.frame[3] + 50); ctx.clip(); ctx.globalAlpha *= alpha; ctx.strokeStyle = GOLD; ctx.lineWidth = 4; ctx.shadowColor = GOLD; ctx.shadowBlur = 24;
+  rr(x - 8, y - 8, w + 16, h + 16, 14); ctx.stroke(); ctx.restore();
+  if (label) { const lw = width(label, 24) + 36; ctx.save(); ctx.globalAlpha *= alpha; rr(x - 8, y - 56, lw, 40, 20); ctx.fillStyle = GOLD; ctx.fill(); ctx.restore();
+    text(label, x + 10, y - 28, 24, "#0c0c0e", { weight: 700, alpha }); }
+}
+
+// ---------- scenes ----------
+function sIntro(t) {
+  const [a] = SC.intro;
+  const k = out3(prog(t, a + .2, a + 1.6));
+  mark(W / 2 - 330, 400, 70, k);
+  text("Confidant", W / 2 - 220, 440, 120, INK, { weight: 700, alpha: prog(t, a + .8, a + 1.4), spacing: -2 });
+  text("Which AI knows when it doesn't know?", W / 2, 580, 54, INK, { align: "center", weight: 700, alpha: prog(t, a + 1.6, a + 2.3) });
+  text("TELEGRAPH HACKATHON S2  ·  APPS & AGENTS  ·  MODEL ECONOMY", W / 2, 670, 22, GOLD, { align: "center", mono: true, weight: 500, spacing: 3, alpha: prog(t, a + 2.4, a + 3) });
+}
+
+function sProblem(t) {
+  const [a] = SC.problem, two = frac("d2", .55);
+  eyebrow("THE PROBLEM", 200, 190, prog(t, a, a + .5));
+  text("Every request: trust the model, or pay for data?", 200, 270, 60, INK, { weight: 700, alpha: prog(t, a + .2, a + .8) });
+  const cols = [["🧠  Trust its memory", "Free", "…until it's confidently wrong.", "A mistake costs real money.", RED],
+                ["🛒  Pay for verified data", "$0.01", "…even when the model already knew.", "Money wasted on every call.", GOLD]];
+  cols.forEach(([h, price, bad, badline, col], i) => {
+    const x = 200 + i * 780, al = prog(t, a + 1 + i * 1.2, a + 1.6 + i * 1.2);
+    card(x, 360, 740, 420, { alpha: al });
+    text(h, x + 50, 450, 44, INK, { weight: 700, alpha: al });
+    text(price, x + 50, 560, 96, i ? GOLD : GREEN, { weight: 800, alpha: al, mono: true });
+    const bk = prog(t, two + i * 1.2, two + .6 + i * 1.2);
+    text(bad, x + 50, 660, 32, MUTED, { weight: 500, alpha: al * bk });
+    text(badline, x + 50, 712, 34, col, { weight: 700, alpha: al * bk });
+  });
+}
+
+function sRules(t) {
+  const [a, b] = SC.rules;
+  const br = browser("s-method", "/method", lerp(0, 60, ease(prog(t, a, b))));
+  highlight(br, 265, 275, 535, 121, prog(t, frac("d4", .45), frac("d4", .45) + .6), "free · −$0.25 if wrong");
+  highlight(br, 800, 275, 535, 121, prog(t, frac("d4", .8), frac("d4", .8) + .6), "$0.01 on Telegraph");
+}
+
+function sQuestion(t) {
+  const [a] = SC.question;
+  eyebrow("A REAL QUESTION  ·  16 NOVEMBER 2026", 200, 330, prog(t, a, a + .5));
+  const k = out3(prog(t, a + .5, a + 1.3));
+  card(200, 380, 1520, 300, { alpha: k, stroke: "rgba(233,185,73,.35)", glow: "rgba(233,185,73,.15)" });
+  text("What is the air temperature in Lagos", 270, 500, 72, INK, { weight: 700, alpha: k });
+  text("right now, in degrees Celsius?", 270, 590, 72, INK, { weight: 700, alpha: k });
+  text("Intent  WEATHER_CHECK_TEMPERATURE  ·  live value no model can remember", 200, 760, 26, MUTED, { mono: true, weight: 500, alpha: prog(t, a + 2, a + 2.6) });
+}
+
+const DECIDERS = [
+  ["L4", "Llama 4 Maverick", "Meta", 28, "60%", "answer"],
+  ["G6", "GPT 6.1 Terra", "OpenAI", 30, "55%", "buy"],
+  ["DV", "DeepSeek V4.1 Flash", "DeepSeek", 31, "60%", "buy"],
+  ["Q3", "Qwen 3.8 Flash", "Qwen", 31, "45%", "buy"],
+  ["ML", "Mistral Large 4.0", "Mistral", 31, "55%", "buy"]];
+function modelCard(i, x, y, w, h, al, extra) {
+  const [ab, name, maker, guess, conf, dec] = DECIDERS[i];
+  card(x, y, w, h, { alpha: al, stroke: extra?.stroke, glow: extra?.glow });
+  ctx.save(); ctx.globalAlpha *= al; rr(x + 28, y + 28, 60, 60, 12); ctx.strokeStyle = LINE; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+  text(ab, x + 58, y + 67, 22, MUTED, { mono: true, align: "center", alpha: al });
+  text(name, x + 108, y + 56, 30, INK, { weight: 700, alpha: al });
+  text(maker, x + 108, y + 88, 22, MUTED, { weight: 500, alpha: al });
+  text("OWN GUESS", x + 28, y + 150, 18, MUTED, { mono: true, spacing: 2, alpha: al });
+  text(guess + " °C", x + 28, y + 205, 52, INK, { weight: 700, mono: true, alpha: al });
+  text("confidence " + conf, x + w - 28, y + 205, 22, MUTED, { align: "right", alpha: al });
+  const dk = extra?.decided ?? 1;
+  const buy = dec === "buy", col = buy ? GOLD : INK;
+  ctx.save(); ctx.globalAlpha *= al * dk; rr(x + 28, y + 236, w - 56, 58, 12); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  text(buy ? "🛒  Buy on Telegraph  ·  $0.01" : "🧠  Answer from memory  ·  $0", x + w / 2, y + 274, 24, col, { align: "center", weight: 700, alpha: al * dk });
+}
+function sDecide(t) {
+  const [a] = SC.decide, l = lineAt("d6");
+  eyebrow("EACH MODEL DECIDES", 160, 150, prog(t, a, a + .5));
+  text("What is the air temperature in Lagos right now?", 160, 215, 40, INK, { weight: 700, alpha: prog(t, a, a + .5) });
+  const llama = prog(t, a + .3, a + 1);
+  modelCard(0, 160, 300, 520, 320, llama, { decided: prog(t, frac("d6", .15), frac("d6", .15) + .5) });
+  for (let i = 1; i < 5; i++) {
+    const al = prog(t, frac("d6", .55) + i * .2, frac("d6", .55) + .5 + i * .2);
+    const col = (i - 1) % 2, row = Math.floor((i - 1) / 2);
+    modelCard(i, 760 + col * 520, 300 + row * 350, 480, 320, al, { decided: prog(t, frac("d6", .75) + i * .15, frac("d6", .75) + .4 + i * .15) });
+  }
+}
+
+function terminal(x, y, w, h, title) {
+  card(x, y, w, h, { r: 18, fill: "#0f0f12", stroke: "rgba(255,255,255,.14)", glow: "rgba(0,0,0,.5)" });
+  ["#ff5f57", "#febc2e", "#28c840"].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 30 + i * 24, y + 30, 7, 0, 7); ctx.fill(); });
+  text(title, x + w / 2, y + 37, 20, MUTED, { align: "center", mono: true, weight: 500 });
+}
+function typed(s, k) { return s.slice(0, Math.floor(s.length * clamp(k))); }
+function sRequest(t) {
+  const l7 = lineAt("d7"), l8 = lineAt("d8");
+  eyebrow("THE TELEGRAPH REQUEST  ·  src/telegraph.mjs", 160, 130, prog(t, l7.start - .3, l7.start + .3));
+  terminal(160, 170, 1600, 800, "confidant → devnode.telegraphprotocol.com");
+  const rows = [
+    [frac("d7", .05), .6, "POST /engine/v1/ask", INK, 34, 700],
+    [frac("d7", .35), .8, '{ "intent": "WEATHER_CHECK_TEMPERATURE",', GOLD2, 30, 500],
+    [frac("d7", .7), .5, '  "params": { "location": "Lagos" } }', GOLD2, 30, 500],
+    [frac("d8", .02), .7, "← 402 Payment Required", RED, 34, 700],
+    [frac("d8", .2), 1, "   accepts: $0.01 USDC · eip155:84532 (Base Sepolia) · x402", MUTED, 26, 500],
+    [frac("d8", .45), 1.2, "x402: sign USDC transfer authorisation (10000 µUSDC) → retry", INK, 28, 600],
+    [frac("d8", .88), .5, "← 200 OK", GREEN, 34, 700],
+  ];
+  rows.forEach(([t0, dur, s, col, size, wt], i) => {
+    const k = prog(t, t0, t0 + dur); if (k <= 0) return;
+    text(typed(s, k), 220, 270 + i * 92, size, col, { mono: true, weight: wt });
+  });
+}
+
+function sEvidence(t) {
+  const [a] = SC.evidence, l = lineAt("d9");
+  eyebrow("WHAT CAME BACK  ·  REAL PURCHASE, 16 NOV", 160, 130, prog(t, a, a + .5));
+  const k = out3(prog(t, a + .2, a + 1));
+  card(160, 170, 760, 800, { alpha: k, stroke: "rgba(233,185,73,.35)" });
+  text("Telegraph miner", 220, 260, 26, MUTED, { weight: 500, alpha: k });
+  text("Wx Openmeteo", 220, 330, 58, INK, { weight: 800, alpha: k });
+  text("miner id 190100", 220, 375, 22, MUTED, { mono: true, alpha: k });
+  const v = prog(t, frac("d9", .2), frac("d9", .2) + .5);
+  text("31.1 °C", 220, 520, 130, GOLD, { weight: 800, mono: true, alpha: k * v });
+  const c = prog(t, frac("d9", .35), frac("d9", .35) + .5);
+  text("$0.01", 220, 680, 64, INK, { weight: 800, mono: true, alpha: k * c });
+  text("paid", 420, 680, 30, MUTED, { weight: 500, alpha: k * c });
+  text("9.1 s", 220, 790, 64, INK, { weight: 800, mono: true, alpha: k * c });
+  text("including the x402 payment", 420, 790, 30, MUTED, { weight: 500, alpha: k * c });
+  const fields = [
+    ["signal_hash", "0x3d585669bd66c92f26278e049d07c047…25c7609ba", frac("d9", .45)],
+    ["verify", "GET /engine/v1/signal/<signal_hash>", frac("d9", .5)],
+    ["receipt", "0xc2ba8f6e8a0ef6d9d99377d34c91b5bc…b1a8f5ef", frac("d9", .6)],
+    ["rail · settlement", "x402 · onchain", frac("d9", .65)],
+    ["chain", "eip155:84532  (Base Sepolia)", frac("d9", .72)],
+    ["tx_hash", "0x529b6942f2f3eaaacef84c33e8eb71a8…dcf487464b4", frac("d9", .78)],
+    ["intent", "WEATHER_CHECK_TEMPERATURE", frac("d9", .84)]];
+  card(960, 170, 800, 800, { alpha: k, fill: "#0f0f12" });
+  text("Receipt (stored with every buy)", 1010, 250, 28, INK, { weight: 700, alpha: k });
+  fields.forEach(([name, val, t0], i) => {
+    const al = prog(t, t0, t0 + .4);
+    text(name, 1010, 340 + i * 88, 22, MUTED, { mono: true, alpha: k * al });
+    text(val, 1010, 378 + i * 88, name === "intent" || name === "chain" || name.startsWith("rail") ? 26 : 22, name === "verify" ? GOLD : INK, { mono: true, weight: 500, alpha: k * al });
+  });
+}
+
+function sGrade(t) {
+  const [a] = SC.grade, l = lineAt("d10");
+  eyebrow("GRADED AGAINST INDEPENDENT TRUTH", 160, 150, prog(t, a, a + .5));
+  const tk = prog(t, frac("d10", .05), frac("d10", .05) + .6);
+  card(160, 190, 1600, 170, { alpha: tk, stroke: "rgba(74,222,128,.35)" });
+  text("Open-Meteo (fetched after every model committed)", 220, 260, 28, MUTED, { weight: 500, alpha: tk });
+  text("30.9 °C", 220, 330, 64, GREEN, { weight: 800, mono: true, alpha: tk });
+  text("correct if within ±2.5 °C", 1700, 330, 28, MUTED, { align: "right", weight: 500, alpha: tk });
+  const rows = [["GPT 6.1 Terra", "bought → 31.1", true, "$0.01"], ["DeepSeek V4.1 Flash", "bought → 31.1", true, "$0.01"],
+                ["Qwen 3.8 Flash", "bought → 31.1", true, "$0.01"], ["Mistral Large 4.0", "bought → 31.1", true, "$0.01"],
+                ["Llama 4 Maverick", "answered → 28", false, "−$0.25"]];
+  rows.forEach(([name, what, ok, cost], i) => {
+    const t0 = ok ? frac("d10", .35) + i * .2 : frac("d10", .65), al = prog(t, t0, t0 + .5), y = 410 + i * 108;
+    card(160, y, 1600, 92, { alpha: al, stroke: ok ? LINE : "rgba(248,113,113,.5)", fill: ok ? "#141417" : "rgba(248,113,113,.07)" });
+    text(name, 210, y + 58, 32, INK, { weight: 700, alpha: al });
+    text(what + " °C", 760, y + 58, 32, INK, { mono: true, weight: 500, alpha: al });
+    text(ok ? "✓ right to buy" : "✗ overconfident", 1200, y + 58, 32, ok ? GREEN : RED, { weight: 700, alpha: al });
+    text(cost, 1710, y + 58, 34, ok ? GOLD : RED, { align: "right", mono: true, weight: 800, alpha: al });
+  });
+}
+
+function shotScene(id, path, y0, y1, scene, marks = []) {
+  return t => {
+    const [a, b] = SC[scene];
+    const br = browser(id, path, lerp(y0, y1, ease(prog(t, a + .6, b - .8))));
+    marks.forEach(([x, y, w, h, line, k, label]) => highlight(br, x, y, w, h, prog(t, frac(line, k), frac(line, k) + .6), label));
+  };
+}
+const sLeaderboard = shotScene("s-leaderboard", "/leaderboard", 0, 120, "leaderboard", [[264, 274, 1072, 364, "d11", .3, "ranked by judgment"]]);
+const sReceipts = shotScene("s-receipts", "/receipts", 0, 0, "receipts", [[1075, 312, 150, 581, "d12", .1, null], [264, 274, 560, 22, "d12", .3, "75 bought · $0.75 to miners · 91% correct"]]);
+const sApi = shotScene("s-developers", "/developers", 0, 120, "api", [[287, 526, 429, 313, "d13", .45, "should I trust this model?"]]);
+const sSavings = shotScene("s-savings", "/savings", 0, 0, "savings", [[264, 359, 1072, 111, "d14", .15, "what following Confidant is worth"]]);
+
+function sTry(t) {
+  const [a] = SC.try, l = lineAt("d15");
+  browser("s-try", "/try", 0, { x: 120, w: 1060, top: 150, h: 700 });
+  const k = prog(t, frac("d15", .4), frac("d15", .4) + .5);
+  ctx.save(); ctx.globalAlpha *= k; terminal(1120, 380, 700, 420, "your laptop"); ctx.restore();
+  [["$ npm install", INK], ["$ cp .env.example .env   # OpenRouter key", INK], ["$ npm run wallet        # testnet wallet", INK], ["$ npm run round", GOLD], ["  8 models · Telegraph testnet · graded", GREEN]].forEach(([s, c], i) =>
+    text(s, 1160, 480 + i * 60, 24, c, { mono: true, weight: 500, alpha: prog(t, frac("d15", .45) + i * .3, frac("d15", .45) + .3 + i * .3) }));
+  text("github.com/BernardOnuh/confidant", 120, 950, 32, GOLD, { weight: 700, alpha: prog(t, a + 1, a + 1.6) });
+}
+
+function sHonest(t) {
+  const [a] = SC.honest;
+  eyebrow("WHAT'S REAL, AND WHAT ISN'T YET", 200, 260, prog(t, a, a + .5));
+  [["✓", "Real x402 purchases from Telegraph testnet, with receipts", GREEN], ["✓", "Paid in test USDC on Base Sepolia, not mainnet funds", GREEN],
+   ["✓", "Truth from independent sources, fetched after models commit", GREEN], ["✓", "Open source under MIT: every prompt and tolerance in the repo", GREEN],
+   ["○", "Next: mainnet Telegraph, more Intents, more history per model", GOLD]].forEach(([icon, s, c], i) => {
+    const al = prog(t, a + .4 + i * .45, a + .9 + i * .45);
+    text(icon, 200, 380 + i * 110, 44, c, { weight: 800, alpha: al });
+    text(s, 270, 380 + i * 110, 42, INK, { weight: 600, alpha: al });
+  });
+}
+
+function sOutro(t) {
+  const [a, b] = SC.outro;
+  mark(W / 2 - 330, 420, 70, out3(prog(t, a, a + 1)));
+  text("Confidant", W / 2 - 220, 460, 120, INK, { weight: 700, alpha: prog(t, a + .4, a + 1), spacing: -2 });
+  text("Know when you don't know.", W / 2, 600, 52, GOLD, { align: "center", weight: 700, alpha: prog(t, a + 1, a + 1.6) });
+  text("confidant-seven.vercel.app   ·   github.com/BernardOnuh/confidant", W / 2, 700, 30, INK, { align: "center", weight: 500, alpha: prog(t, a + 1.6, a + 2.2) });
+  text("Built on Telegraph testnet with x402  ·  #TelegraphHackathon", W / 2, 760, 24, MUTED, { align: "center", weight: 500, alpha: prog(t, a + 2, a + 2.6) });
+}
+
+const SCENE_FN = { intro: sIntro, problem: sProblem, rules: sRules, question: sQuestion, decide: sDecide, request: sRequest, evidence: sEvidence,
+  grade: sGrade, leaderboard: sLeaderboard, receipts: sReceipts, api: sApi, savings: sSavings, try: sTry, honest: sHonest, outro: sOutro };
+
+function render(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; backdrop(t);
+  for (const [name, [a, b]] of Object.entries(SC)) {
+    if (t < a - .3 || t >= b + .3) continue;
+    ctx.save(); ctx.globalAlpha = clamp(Math.min((t - a + .3) / .3, (b + .3 - t) / .3)); SCENE_FN[name](t); ctx.restore();
+  }
+  const line = LINES.find(l => t >= l.start && t <= l.end + .3);
+  if (line) {
+    const al = clamp((t - line.start) / .15) * clamp((line.end + .3 - t) / .2);
+    ctx.save(); ctx.globalAlpha = .95 * al; ctx.font = `500 30px ${SANS}`;
+    const words = line.text.split(" "), rows = [""]; for (const w of words) { const tryRow = (rows[rows.length - 1] + " " + w).trim(); if (ctx.measureText(tryRow).width > 1500) rows.push(w); else rows[rows.length - 1] = tryRow; }
+    const bw = Math.max(...rows.map(r => ctx.measureText(r).width)) + 56, bh = rows.length * 42 + 22, by = H - 30 - bh;
+    rr(W / 2 - bw / 2, by, bw, bh, 20); ctx.fillStyle = "rgba(0,0,0,.72)"; ctx.fill();
+    ctx.fillStyle = INK; ctx.textAlign = "center"; ctx.textBaseline = "middle"; rows.forEach((r, i) => ctx.fillText(r, W / 2, by + 32 + i * 42)); ctx.restore();
+  }
+  const f = Math.max(1 - clamp(t / .5), prog(t, window.TOTAL - .8, window.TOTAL));
+  if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${f})`; ctx.fillRect(0, 0, W, H); }
+}
+window.render = render;
+render(0);
+</script>
+</body></html>
